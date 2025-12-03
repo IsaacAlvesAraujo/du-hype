@@ -1,49 +1,44 @@
 <?php 
 require_once '../../../db_config.php'; 
 
-// Lógica de cadastro PHP pode vir aqui
 $cadastro_error = '';
 $cadastro_success = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Isso é um exemplo simples. Você precisará de mais campos no seu form.
     $email = $_POST['email'] ?? '';
     $senha = $_POST['senha'] ?? '';
     $senha_confirma = $_POST['senha_confirma'] ?? '';
-    // Você deve adicionar um campo 'nome' ao seu formulário
-    $nome = $_POST['nome'] ?? $email; // Pega o nome ou usa o email como padrão
+    $nome = $_POST['nome'] ?? ''; // Pega o nome do formulário
 
-    if (empty($email) || empty($senha) || empty($senha_confirma)) {
-        $cadastro_error = "Todos os campos são obrigatórios.";
+    // Validações Básicas
+    if (empty($email) || empty($senha) || empty($senha_confirma) || empty($nome)) {
+        $cadastro_error = "Todos os campos (inclusive Nome) são obrigatórios.";
     } elseif ($senha !== $senha_confirma) {
         $cadastro_error = "As senhas não coincidem.";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $cadastro_error = "Formato de e-mail inválido.";
     } else {
         // Verificar se o e-mail já existe
-        $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE email = ?");
-        $stmt->execute([$email]);
-        if ($stmt->fetch()) {
-            $cadastro_error = "Este e-mail já está cadastrado.";
-        } else {
-            // Criar novo usuário
-            $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
-            // Inserindo nome também
-            $stmt = $pdo->prepare("INSERT INTO usuarios (email, nome, senha_hash) VALUES (?, ?, ?)");
-            try {
-                $stmt->execute([$email, $nome, $senha_hash]);
-                $cadastro_success = "Cadastro realizado com sucesso! Você já pode fazer login.";
+        try {
+            $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE email = ?");
+            $stmt->execute([$email]);
+            
+            if ($stmt->fetch()) {
+                $cadastro_error = "Este e-mail já está cadastrado.";
+            } else {
+                // Criar novo usuário
+                $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
+                $stmt = $pdo->prepare("INSERT INTO usuarios (email, nome, senha_hash) VALUES (?, ?, ?)");
                 
-                // Opcional: Logar o usuário automaticamente após o cadastro
-                // $_SESSION['user_id'] = $pdo->lastInsertId();
-                // $_SESSION['user_nome'] = $nome;
-                // $_SESSION['is_admin'] = false;
-                // header("Location: " . BASE_URL . "/src/pages/fedd/feed.php"); // Link corrigido
-                // exit;
-
-            } catch (PDOException $e) {
-                $cadastro_error = "Erro ao cadastrar. Tente novamente.";
+                if ($stmt->execute([$email, $nome, $senha_hash])) {
+                    $cadastro_success = "Cadastro realizado com sucesso! <a href='" . BASE_URL . "/src/pages/login/login.php'>Clique aqui para entrar</a>.";
+                } else {
+                    $cadastro_error = "Erro ao salvar no banco de dados.";
+                }
             }
+        } catch (PDOException $e) {
+            // Se der erro de conexão, vai cair aqui
+            $cadastro_error = "Erro de sistema: " . $e->getMessage();
         }
     }
 }
@@ -53,7 +48,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Página de Login DU.HYPE</title>
+    <title>Criar Conta - DU.HYPE</title>
     
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>/src/pages/cadastro/style.css">
     
@@ -68,7 +63,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="header-container">
         <header class="header">
             <div class="logo">
-                <img src="<?php echo BASE_URL; ?>/src/assets/Images/LogoDu.Hype.svg" alt="Logo duhype">
+                <a href="<?php echo BASE_URL; ?>/home.php">
+                    <img src="<?php echo BASE_URL; ?>/src/assets/Images/LogoDu.Hype.svg" alt="Logo duhype">
+                </a>
             </div>
             <nav class="nav">
                 <a href="<?php echo BASE_URL; ?>/home.php">Início</a>
@@ -87,32 +84,40 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <main class="main-content">
         <section class="form-section">
             <div class="login-container">
+                <h2 class="form-title">Crie sua Conta</h2>
+                
                 <form class="login-form" method="POST" action="<?php echo BASE_URL; ?>/src/pages/cadastro/cadastro.php">
                     <div class="input-group">
                         <i class="fas fa-user"></i>
                         <input type="text" name="nome" placeholder="Digite seu nome" required>
                     </div>
+                    
                     <div class="input-group">
                         <i class="fas fa-envelope"></i>
                         <input type="email" name="email" placeholder="Digite seu email" required>
                     </div>
+                    
                     <div class="input-group">
                         <i class="fas fa-lock"></i>
                         <input type="password" name="senha" placeholder="Crie uma senha" required>
                     </div>
+                    
                     <div class="input-group">
                         <i class="fas fa-lock"></i>
                         <input type="password" name="senha_confirma" placeholder="Confirme sua senha" required>
                     </div>
                     
                     <?php if (!empty($cadastro_error)): ?>
-                        <p style="color: red; font-size: 0.9em;"><?php echo $cadastro_error; ?></p>
+                        <p style="color: red; font-size: 0.9em; margin-bottom: 15px;"><?php echo $cadastro_error; ?></p>
                     <?php endif; ?>
+                    
                     <?php if (!empty($cadastro_success)): ?>
-                        <p style="color: green; font-size: 0.9em;"><?php echo $cadastro_success; ?></p>
+                        <p style="color: green; font-size: 0.9em; margin-bottom: 15px;"><?php echo $cadastro_success; ?></p>
                     <?php endif; ?>
 
-                    <button type="submit" class="social-btn apple" style="margin-top: 20px; border: none;">Criar Conta</button>
+                    <button type="submit" class="social-btn apple" style="margin-top: 10px; border: none; background-color: #000; color: #fff;">
+                        Cadastrar
+                    </button>
                 </form>
                 
                 <div class="or-separator">
@@ -120,20 +125,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 </div>
                 
                 <div class="social-login">
-                    <a href="https://accounts.google.com" target="_blank" rel="noopener noreferrer">
-                        <button class="social-btn google">
-                            <i class="fab fa-google"></i> Registre-se com Google
-                        </button>
+                    <a href="#" class="social-btn google">
+                        <i class="fab fa-google"></i> Registre-se com Google
                     </a>
-                    <a href="https://www.facebook.com" target="_blank" rel="noopener noreferrer">
-                        <button class="social-btn facebook">
-                            <i class="fab fa-facebook-f"></i> Registre-se com Facebook
-                        </button>
-                    </a>
-                    <a href="https://account.apple.com" target="_blank" rel="noopener noreferrer">
-                        <button class="social-btn apple">
-                            <i class="fab fa-apple"></i> Registre-se com Apple
-                        </button>
+                    <a href="#" class="social-btn facebook">
+                        <i class="fab fa-facebook-f"></i> Registre-se com Facebook
                     </a>
                 </div>
                 
